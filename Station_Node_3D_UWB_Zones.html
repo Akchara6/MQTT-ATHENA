@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPION OF TESLA | Station Node 3D</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+:root{--bg:#061426;--panel:#0b223a;--line:#234967;--text:#eaf5ff;--muted:#91aec8;--cyan:#62dcff;--green:#65e6ac;--red:#ff6578;--amber:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#103858,var(--bg) 65%);color:var(--text);font:14px "Segoe UI",Arial,sans-serif}
+header{padding:22px;background:#071a2c;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;letter-spacing:4px;font-size:28px}.sub{color:var(--muted);font-size:11px;letter-spacing:2px;margin-top:5px}
+main{max-width:1700px;margin:auto;padding:16px}.panel{background:linear-gradient(145deg,#0c2945,#081b30);border:1px solid var(--line);border-radius:10px;padding:15px;min-width:0}
+.connect{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto auto;gap:9px;margin-bottom:13px}
+label{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+input,select{width:100%;min-width:0;padding:10px;background:#041426;color:var(--text);border:1px solid var(--line);border-radius:6px}
+button{border:0;border-radius:6px;padding:10px 13px;background:var(--cyan);color:#062039;font-weight:bold;cursor:pointer}button.secondary{background:#183955;color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.45}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.wide{grid-column:span 2}.full{grid-column:1/-1}
+h2{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin:0 0 12px}
+.metric{font-size:25px;font-weight:750;overflow-wrap:anywhere}.small{font-size:11px;color:var(--muted)}
+.kpi{background:#06182a;border:1px solid #1c405d;border-radius:7px;padding:12px}.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted)}.dot{width:9px;height:9px;border-radius:50%;background:#75899a}.dot.on{background:var(--green);box-shadow:0 0 10px #65e6ac88}.dot.bad{background:var(--red)}
+.layout{display:grid;grid-template-columns:1.5fr 1fr;gap:12px;margin-bottom:12px}.map{padding:0;overflow:hidden}.maphead{padding:14px 15px 0;display:flex;justify-content:space-between;gap:8px}
+#scene{height:430px;position:relative;background:#041426}#scene canvas{width:100%;height:100%;display:block}
+.overlay{position:absolute;top:12px;left:12px;pointer-events:none;display:grid;gap:5px}.overlay span,.tag{background:#06182bdc;border:1px solid #28506d;color:var(--cyan);padding:5px 7px;border-radius:4px;font-size:10px}
+.legend{padding:10px 15px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;display:flex;gap:12px;flex-wrap:wrap}.key{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.stack{display:grid;gap:12px;align-content:start}.bar{height:5px;background:#173650;border-radius:8px;margin-top:7px}.bar span{display:block;height:100%;background:var(--cyan);width:0;transition:width .4s}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.line{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #193751}.line span:first-child{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #193751}th{color:var(--muted);font-weight:600}
+.scroll{overflow:auto;max-height:270px}.pill{font-size:10px;padding:3px 7px;border-radius:12px;background:#153c59;color:var(--cyan)}.warn{color:var(--amber)}.danger{color:var(--red)}
+.alert{padding:9px;margin:7px 0;background:#10283c;border-left:3px solid var(--amber)}.critical{border-color:var(--red)}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:100px;overflow:auto;font-size:10px}
+.zone-config{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.zone-box{border:1px solid var(--line);padding:10px;border-radius:7px;background:#06182a}
+.bounds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.bounds label{font-size:9px}.bounds input{padding:7px}.zone-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.notice{padding:10px;border:1px solid #705d28;background:#302a18;color:#ffdf91;border-radius:6px;font-size:11px;line-height:1.5}
+@media(max-width:1000px){.connect{grid-template-columns:repeat(3,minmax(0,1fr))}.layout{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.zone-config{grid-template-columns:1fr}}
+@media(max-width:600px){header{align-items:flex-start;flex-direction:column}.connect,.grid,.kpis{grid-template-columns:1fr}.wide,.full{grid-column:auto}#scene{height:330px}.bounds{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header><div><h1>SPION OF TESLA</h1><div class="sub">STATION NODE · WORKER–DRONE COOPERATIVE HAZARD DETECTION</div></div>
+<div class="status"><span id="dot" class="dot"></span><span id="conn">DISCONNECTED</span><span id="uptime"></span></div></header>
+<main>
+<section class="connect">
+<div><label>MQTT WebSocket URL</label><input id="url" value="ws://localhost:9001"></div>
+<div><label>Username</label><input id="user" placeholder="Optional"></div>
+<div><label>Password</label><input id="pass" type="password" placeholder="Optional"></div>
+<div><label>Topic root</label><input id="root" value="cave"></div>
+<div style="align-self:end"><button id="connect">CONNECT</button></div><div style="align-self:end"><button id="disconnect" class="secondary" disabled>STOP</button></div>
+</section>
+<section class="kpis" style="margin-bottom:12px">
+<div class="kpi"><label>Workers online</label><div class="metric" id="wc">0</div><div class="small">15-second telemetry window</div></div>
+<div class="kpi"><label>Drone mode</label><div class="metric" id="mode">—</div><div class="small" id="droneFresh">Awaiting status</div></div>
+<div class="kpi"><label>Messages received</label><div class="metric" id="mc">0</div><div class="small" id="last">Waiting for packets</div></div>
+<div class="kpi"><label>Hazard alerts</label><div class="metric" id="ac">0</div><div class="small">Alert events received</div></div>
+</section>
+<section class="layout">
+<div class="panel map"><div class="maphead"><h2>3D Cave · UWB Tracking View</h2><span class="tag" id="mapTag">ILLUSTRATIVE MAP</span></div>
+<div id="scene"><div class="overlay"><span>LOCAL XYZ FRAME</span><span id="coords">DRONE POSITION · WAITING</span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div></div>
+<div class="legend"><span><i class="key" style="background:#62dcff"></i>Illustrative point cloud</span><span><i class="key" style="background:white"></i>UWB anchors</span><span><i class="key" style="background:#ffd166"></i>Workers</span><span><i class="key" style="background:#65e6ac"></i>Drone</span></div>
+<div class="small" style="padding:10px 15px">The tunnel is illustrative. Worker/drone markers use received MQTT XYZ telemetry; the point cloud is not a real LiDAR scan.</div></div>
+<div class="stack">
+<div class="panel"><h2>Drone telemetry</h2><div class="twocol">
+<div class="kpi"><label>Position · m</label><div class="metric" id="dp" style="font-size:18px">—</div></div><div class="kpi"><label>Battery</label><div class="metric" id="db">—</div><div class="bar"><span id="bb"></span></div></div>
+<div class="kpi"><label>Speed · m/s</label><div class="metric" id="ds">—</div></div><div class="kpi"><label>UWB anchors in range</label><div class="metric" id="da">—</div></div></div>
+<div class="line"><span>UWB Zone</span><b id="droneZone">UNCONFIGURED</b></div><div class="line"><span>Yaw</span><b id="yaw">—</b></div><div class="line"><span>Position error</span><b id="err">—</b></div>
+<label style="margin-top:12px">Drone command</label><div style="display:flex;gap:8px"><select id="cmd"><option>PATROL</option><option>HOLD</option><option>RTL</option><option>LAND</option></select><button id="send" disabled>SEND</button></div><div class="small" style="margin-top:7px">Topic: <code id="cmdTopic">cave/drone/cmd</code></div></div>
+<div class="panel"><h2>Selected worker</h2><label>Worker ID</label><select id="sel"><option>worker01</option><option>worker02</option><option>worker03</option></select>
+<div class="twocol" style="margin-top:10px"><div class="kpi"><label>CO</label><div class="metric" id="co">—</div></div><div class="kpi"><label>H₂S</label><div class="metric" id="h2s">—</div></div><div class="kpi"><label>O₂</label><div class="metric" id="o2">—</div></div><div class="kpi"><label>CH₄</label><div class="metric" id="ch4">—</div></div></div>
+<div class="line"><span>Temperature / humidity</span><b id="th">—</b></div><div class="line"><span>Battery / radio</span><b id="wl">—</b></div><div class="line"><span>Position / error</span><b id="wp">—</b></div><div class="line"><span>UWB Zone</span><b id="workerZone">UNCONFIGURED</b></div></div>
+<div class="panel"><h2>Live hazard alerts</h2><div id="alerts" class="small">No alerts received.</div></div>
+</div></section>
+<section class="grid">
+<div class="panel wide"><h2>Worker fleet telemetry + zones</h2><div class="scroll"><table><thead><tr><th>Worker</th><th>Link</th><th>X,Y,Z (m)</th><th>Zone</th><th>CO</th><th>H₂S</th><th>O₂</th><th>CH₄</th><th>Temp</th><th>RH</th><th>Battery</th></tr></thead><tbody id="wt"><tr><td colspan="11">Waiting for telemetry…</td></tr></tbody></table></div></div>
+<div class="panel wide"><h2>UWB Zone Identification</h2><div class="scroll"><table><thead><tr><th>Node</th><th>X,Y,Z (m)</th><th>Zone</th><th>Classification</th><th>Telemetry time</th></tr></thead><tbody id="zoneTable"><tr><td colspan="5">Waiting for UWB positions…</td></tr></tbody></table></div></div>
+<div class="panel full"><h2>Configure fixed XYZ zone boundaries</h2>
+<div class="notice">No zone coordinates are assumed by this portal. Enter the actual mapped boundary limits in metres. Incoming simulator positions are interpreted as XYZ in centimetres (matching the portal's existing /100 display conversion). A node is assigned only when its full XYZ position falls inside a configured box. Unconfigured/out-of-range positions remain UNKNOWN; this is not a safety certification.</div>
+<div class="zone-config" style="margin-top:12px">
+<div class="zone-box"><div class="zone-title"><b style="color:var(--green)">Zone A — Entry / Safe-designated</b><span class="pill">A</span></div><div class="bounds">
+<div><label>X min (m)</label><input id="aXmin" type="number" step="0.1" placeholder="Required"></div><div><label>X max (m)</label><input id="aXmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Y min (m)</label><input id="aYmin" type="number" step="0.1" placeholder="Required"></div><div><label>Y max (m)</label><input id="aYmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Z min (m)</label><input id="aZmin" type="number" step="0.1" placeholder="Required"></div><div><label>Z max (m)</label><input id="aZmax" type="number" step="0.1" placeholder="Required"></div></div></div>
+<div class="zone-box"><div class="zone-title"><b style="color:var(--amber)">Zone B — Exploration</b><span class="pill">B</span></div><div class="bounds">
+<div><label>X min (m)</label><input id="bXmin" type="number" step="0.1" placeholder="Required"></div><div><label>X max (m)</label><input id="bXmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Y min (m)</label><input id="bYmin" type="number" step="0.1" placeholder="Required"></div><div><label>Y max (m)</label><input id="bYmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Z min (m)</label><input id="bZmin" type="number" step="0.1" placeholder="Required"></div><div><label>Z max (m)</label><input id="bZmax" type="number" step="0.1" placeholder="Required"></div></div></div>
+<div class="zone-box"><div class="zone-title"><b style="color:var(--red)">Zone C — Restricted / Hazard</b><span class="pill">C</span></div><div class="bounds">
+<div><label>X min (m)</label><input id="cXmin" type="number" step="0.1" placeholder="Required"></div><div><label>X max (m)</label><input id="cXmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Y min (m)</label><input id="cYmin" type="number" step="0.1" placeholder="Required"></div><div><label>Y max (m)</label><input id="cYmax" type="number" step="0.1" placeholder="Required"></div>
+<div><label>Z min (m)</label><input id="cZmin" type="number" step="0.1" placeholder="Required"></div><div><label>Z max (m)</label><input id="cZmax" type="number" step="0.1" placeholder="Required"></div></div></div>
+</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="saveZones">SAVE ZONE BOUNDARIES</button><button id="clearZones" class="secondary">CLEAR BOUNDARIES</button><span class="small" id="zoneSaveStatus" style="align-self:center">Zone boundaries not configured.</span></div>
+<div class="small" style="margin-top:9px">Boundaries are saved in this browser only. Zone names are operational labels; define them according to your actual cave map and safety plan.</div></div>
+<div class="panel wide"><h2>Relays and station health</h2><div class="scroll"><table><thead><tr><th>Node</th><th>RSSI</th><th>SNR</th><th>Forwarded</th><th>Queue</th><th>Battery</th></tr></thead><tbody id="rt"><tr><td colspan="6">Waiting…</td></tr></tbody></table></div><div id="base" class="small"></div></div>
+<div class="panel wide"><h2>UWB anchors</h2><div class="scroll"><table><thead><tr><th>Anchor</th><th>X,Y,Z (m)</th><th>Battery</th><th>Temperature</th><th>Updated</th></tr></thead><tbody id="at"><tr><td colspan="5">Waiting…</td></tr></tbody></table></div></div>
+<div class="panel full"><h2>MQTT packet inspector</h2><button id="clear" class="secondary">CLEAR LOG</button><div class="scroll"><table><thead><tr><th>Time</th><th>Topic</th><th>Payload</th></tr></thead><tbody id="log"><tr><td colspan="3">Waiting for packets…</td></tr></tbody></table></div></div>
+</section>
+</main>
+<footer>MQTT browser connection uses WebSockets at port 9001. Python and MQTTBox continue using MQTT/TCP at port 1883. Zone assignment uses only received XYZ telemetry and boundaries entered above. The 3D tunnel/point cloud is illustrative, not a real LiDAR scan.</footer>
+<script>
+(() => {
+const $=id=>document.getElementById(id);
+let client=null,count=0,started=0,timer=null,drone=null,base=null;
+const workers={},anchors={},relays={},alerts=[];
+const zoneNames=['a','b','c'];
+const root=()=>$('root').value.trim().replace(/^\/+|\/+$/g,'')||'cave';
+const fmt=(v,d=1)=>Number.isFinite(Number(v))?Number(v).toFixed(d):'—';
+const metres=v=>Number.isFinite(Number(v))?(Number(v)/100).toFixed(2):'—';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clock=t=>new Date((Number(t)||Date.now()/1000)*1000).toLocaleTimeString();
+let scene,camera,renderer,droneMark,workerMarks=[],anchorMarks=[];
+function init3D(){
+ if(!window.THREE){$('mapTag').textContent='3D LIBRARY UNAVAILABLE';return}
+ const host=$('scene');scene=new THREE.Scene();scene.fog=new THREE.Fog(0x061426,35,100);
+ camera=new THREE.PerspectiveCamera(55,host.clientWidth/host.clientHeight,.1,200);camera.position.set(12,17,28);
+ renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(host.clientWidth,host.clientHeight);host.appendChild(renderer.domElement);
+ scene.add(new THREE.AmbientLight(0x9acfff,1.4));const light=new THREE.PointLight(0x62dcff,35);light.position.set(0,12,0);scene.add(light);
+ const grid=new THREE.GridHelper(70,35,0x27618b,0x163653);grid.position.y=-4;scene.add(grid);
+ const verts=[],indices=[],rings=65,segs=18;
+ for(let i=0;i<rings;i++){const x=-30+i*60/(rings-1);for(let j=0;j<segs;j++){const a=j*2*Math.PI/segs,r=1+.07*Math.sin(i*.7+j*1.4);verts.push(x,Math.cos(a)*4*r,Math.sin(a)*4.7*r)}}
+ for(let i=0;i<rings-1;i++)for(let j=0;j<segs;j++){const a=i*segs+j,b=i*segs+(j+1)%segs,c=(i+1)*segs+j,d=(i+1)*segs+(j+1)%segs;indices.push(a,c,b,b,c,d)}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();scene.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x286b91,wireframe:true,transparent:true,opacity:.38})));
+ const points=[];for(let i=0;i<4500;i++){const x=Math.random()*60-30,a=Math.random()*Math.PI*2,r=3.4+Math.random()*1.3;points.push(x,Math.cos(a)*r,Math.sin(a)*r*1.15)}
+ const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(points,3));scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x62dcff,size:.065,transparent:true,opacity:.8})));
+ const marker=(color,size)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(size,12,10),new THREE.MeshBasicMaterial({color}));scene.add(o);return o};
+ droneMark=marker(0x65e6ac,.38);for(let i=0;i<3;i++)workerMarks.push(marker(0xffd166,.28));for(let i=0;i<7;i++)anchorMarks.push(marker(0xffffff,.18));
+ let down=false,lx=0,ly=0,rx=.25,ry=-.4,dist=32;
+ renderer.domElement.addEventListener('pointerdown',e=>{down=true;lx=e.clientX;ly=e.clientY;renderer.domElement.setPointerCapture(e.pointerId)});
+ renderer.domElement.addEventListener('pointerup',()=>down=false);
+ renderer.domElement.addEventListener('pointermove',e=>{if(!down)return;ry-=(e.clientX-lx)*.006;rx=Math.max(-1.1,Math.min(1.1,rx+(e.clientY-ly)*.005));lx=e.clientX;ly=e.clientY});
+ renderer.domElement.addEventListener('wheel',e=>{dist=Math.max(12,Math.min(65,dist+e.deltaY*.025))});
+ window.addEventListener('resize',()=>{camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight)});
+ function animate(){requestAnimationFrame(animate);if(!down)ry+=.0007;camera.position.set(Math.sin(ry)*dist,Math.sin(rx)*dist*.65,Math.cos(ry)*dist);camera.lookAt(0,0,0);renderer.render(scene,camera)}animate();
+}
+function posM(p){if(!Array.isArray(p)||p.length<3)return null;const xyz=p.slice(0,3).map(Number);return xyz.every(Number.isFinite)?xyz.map(v=>v/100):null}
+function classifyZone(p){
+ const xyz=posM(p);if(!xyz)return {name:'UNKNOWN',status:'NO VALID XYZ',color:'#91aec8',key:null};
+ for(const k of zoneNames){
+  const vals=['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'].map(s=>$(k+s).value.trim());
+  if(vals.some(v=>v===''))continue;
+  const b=vals.map(Number);if(!b.every(Number.isFinite)||b[0]>b[1]||b[2]>b[3]||b[4]>b[5])continue;
+  if(xyz[0]>=b[0]&&xyz[0]<=b[1]&&xyz[1]>=b[2]&&xyz[1]<=b[3]&&xyz[2]>=b[4]&&xyz[2]<=b[5]){
+   const names={a:['Zone A — Entry','WITHIN CONFIGURED BOUNDARY','#65e6ac'],b:['Zone B — Exploration','WITHIN CONFIGURED BOUNDARY','#ffd166'],c:['Zone C — Restricted','WITHIN CONFIGURED BOUNDARY','#ff6578']};
+   return {name:names[k][0],status:names[k][1],color:names[k][2],key:k};
+  }
+ }
+ const anyConfigured=zoneNames.some(k=>['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'].every(s=>$(k+s).value.trim()!==''));
+ return {name:anyConfigured?'OUTSIDE CONFIGURED ZONES':'UNCONFIGURED',status:anyConfigured?'NO BOUNDARY MATCH':'SET XYZ BOUNDARIES',color:'#91aec8',key:null};
+}
+function loadZones(){
+ try{const saved=JSON.parse(localStorage.getItem('spionUwbZonesV1')||'{}');for(const k of zoneNames)for(const s of ['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'])if(saved[k+s]!=null)$(k+s).value=saved[k+s]}catch(e){}
+ setZoneStatus();
+}
+function setZoneStatus(){const configured=zoneNames.filter(k=>['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'].every(s=>$(k+s).value.trim()!==''));$('zoneSaveStatus').textContent=configured.length+' of 3 zones configured in this browser.'}
+function saveZones(){
+ const saved={};let errors=[];
+ for(const k of zoneNames){
+  const vals=['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'].map(s=>$(k+s).value.trim());
+  if(vals.every(v=>v===''))continue;
+  if(vals.some(v=>v==='')){errors.push('Zone '+k.toUpperCase()+': fill all six limits or leave all blank.');continue}
+  const b=vals.map(Number);if(!b.every(Number.isFinite)||b[0]>b[1]||b[2]>b[3]||b[4]>b[5]){errors.push('Zone '+k.toUpperCase()+': check numeric min/max limits.');continue}
+  ['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'].forEach((s,i)=>saved[k+s]=b[i]);
+ }
+ if(errors.length){alert(errors.join('\n'));return}
+ try{localStorage.setItem('spionUwbZonesV1',JSON.stringify(saved));setZoneStatus();render()}catch(e){alert('Could not save zone settings in this browser.')}
+}
+function clearZones(){for(const k of zoneNames)for(const s of ['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'])$(k+s).value='';try{localStorage.removeItem('spionUwbZonesV1')}catch(e){}setZoneStatus();render()}
+function updateMap(){
+ if(!scene)return;
+ if(drone?.p){const p=posM(drone.p);if(p){droneMark.position.set(Math.max(-30,Math.min(30,p[0])),Math.max(-3.5,Math.min(3.5,p[2])),Math.max(-5,Math.min(5,p[1])));$('coords').textContent='DRONE XYZ · '+p.map(v=>v.toFixed(2)).join(', ')+' m'}}
+ Object.keys(workers).slice(0,3).forEach((id,i)=>{const p=posM(workers[id].p);if(p){workerMarks[i].position.set(Math.max(-30,Math.min(30,p[0])),Math.max(-3.5,Math.min(3.5,p[2])),Math.max(-5,Math.min(5,p[1])));workerMarks[i].visible=true}});
+ Object.keys(anchors).slice(0,7).forEach((id,i)=>{const p=posM(anchors[id].p);if(p){anchorMarks[i].position.set(Math.max(-30,Math.min(30,p[0])),Math.max(-3.5,Math.min(3.5,p[2])),Math.max(-5,Math.min(5,p[1])));anchorMarks[i].visible=true}});
+}
+function render(){
+ const now=Date.now();$('wc').textContent=Object.values(workers).filter(w=>now-w.receivedAt<15000).length;$('mc').textContent=count;$('ac').textContent=alerts.length;$('last').textContent=count?'Last packet '+new Date().toLocaleTimeString():'Waiting for packets';$('cmdTopic').textContent=root()+'/drone/cmd';
+ $('wt').innerHTML=Object.entries(workers).map(([id,w])=>{const g=w.g||{},p=posM(w.p),z=classifyZone(w.p);return `<tr><td>${esc(id)}</td><td class="${now-w.receivedAt<15000?'':'warn'}">${now-w.receivedAt<15000?'ONLINE':'STALE'}</td><td>${p?p.map(v=>v.toFixed(2)).join(', '):'—'}</td><td style="color:${z.color}">${esc(z.name)}</td><td>${fmt(g.co)}</td><td>${fmt(g.h2s)}</td><td>${fmt(g.o2,2)}</td><td>${fmt(g.ch4)}</td><td>${fmt(w.tc)}</td><td>${fmt(w.rh,0)}</td><td>${esc(w.b??'—')}${w.b!=null?'%':''}</td></tr>`}).join('')||'<tr><td colspan="11">Waiting for telemetry…</td></tr>';
+ const selected=workers[$('sel').value];if(selected){const g=selected.g||{},z=classifyZone(selected.p),p=posM(selected.p);$('co').textContent=fmt(g.co);$('h2s').textContent=fmt(g.h2s);$('o2').textContent=fmt(g.o2,2);$('ch4').textContent=fmt(g.ch4);$('th').textContent=fmt(selected.tc)+' °C / '+fmt(selected.rh,0)+'%';$('wl').textContent=(selected.b??'—')+'% / '+(selected.l||'—')+' '+(selected.rs??'—')+' dBm';$('wp').textContent=(p?p.map(v=>v.toFixed(2)).join(', '):'—')+' m / ±'+(selected.e??'—')+' cm';$('workerZone').textContent=z.name;$('workerZone').style.color=z.color}else{$('workerZone').textContent='NO TELEMETRY'}
+ if(drone){const z=classifyZone(drone.p);$('droneZone').textContent=z.name;$('droneZone').style.color=z.color}
+ $('zoneTable').innerHTML=[...Object.entries(workers).map(([id,w])=>({id,p:w.p,updated:new Date(w.receivedAt).toLocaleTimeString()})),...(drone?[{id:'drone',p:drone.p,updated:'Latest status packet'}]:[])].map(r=>{const p=posM(r.p),z=classifyZone(r.p);return `<tr><td>${esc(r.id)}</td><td>${p?p.map(v=>v.toFixed(2)).join(', '):'—'}</td><td style="color:${z.color}">${esc(z.name)}</td><td>${esc(z.status)}</td><td>${esc(r.updated)}</td></tr>`}).join('')||'<tr><td colspan="5">Waiting for UWB positions…</td></tr>';
+ $('at').innerHTML=Object.entries(anchors).map(([id,a])=>{const p=posM(a.p);return `<tr><td>${esc(id)}</td><td>${p?p.map(v=>v.toFixed(2)).join(', '):'—'}</td><td>${esc(a.b??'—')}${a.b!=null?'%':''}</td><td>${esc(a.tc??'—')}</td><td>${esc(a.updated||'—')}</td></tr>`}).join('')||'<tr><td colspan="5">Waiting…</td></tr>';
+ $('rt').innerHTML=Object.entries(relays).map(([id,r])=>`<tr><td>${esc(id)}</td><td>${esc(r.rs??'—')}</td><td>${esc(r.snr??'—')}</td><td>${esc(r.fwd??'—')}</td><td>${esc(r.q??'—')}</td><td>${esc(r.b??'—')}%</td></tr>`).join('')||'<tr><td colspan="6">Waiting…</td></tr>';
+ if(base)$('base').textContent=`Station · msgs ${base.msgs??'—'} · nodes ${base.nodes??'—'} · CPU ${base.cpu??'—'}%`;
+ $('alerts').innerHTML=alerts.slice(0,10).map(a=>`<div class="alert ${a.sev>=3?'critical':''}"><b>${esc(a.node)} · ${esc(a.type)}</b> <span class="${a.sev>=3?'danger':'warn'}">${a.sev>=3?'CRITICAL':a.sev>=2?'DANGER':'WARNING'}</span><div class="small">Value ${esc(a.v??'—')} · Position ${esc(a.p||'—')} · ${esc(a.when)}</div></div>`).join('')||'No alerts received.';
+ updateMap();
+}
+function onMessage(topic,payload){
+ count++;const tr=document.createElement('tr');tr.innerHTML=`<td>${new Date().toLocaleTimeString()}</td><td><code>${esc(topic)}</code></td><td><pre>${esc(typeof payload==='string'?payload:JSON.stringify(payload))}</pre></td>`;if($('log').querySelector('td[colspan]'))$('log').innerHTML='';$('log').prepend(tr);while($('log').children.length>50)$('log').lastElementChild.remove();
+ const rel=topic.startsWith(root()+'/')?topic.slice(root().length+1):topic,a=rel.split('/');
+ if(a.length===2&&a[1]==='telemetry'&&a[0].startsWith('worker')&&payload&&typeof payload==='object')workers[a[0]]={...payload,receivedAt:Date.now()};
+ else if(rel==='drone/status'&&payload&&typeof payload==='object'){drone=payload;$('mode').textContent=payload.m||'—';$('droneFresh').textContent='Updated '+clock(payload.t);const p=posM(payload.p);$('dp').textContent=p?p.map(v=>v.toFixed(2)).join(' / '):'—';$('db').textContent=(payload.b??'—')+'%';$('bb').style.width=Math.max(0,Math.min(100,Number(payload.b)||0))+'%';$('ds').textContent=fmt(Number(payload.v)/100,2);$('da').textContent=payload.na??'—';$('yaw').textContent=(payload.yaw??'—')+'°';$('err').textContent=(payload.e??'—')+' cm'}
+ else if(a.length===2&&a[1]==='alert'&&payload&&typeof payload==='object'){alerts.unshift({node:a[0],type:payload.type||'ALERT',sev:Number(payload.sev)||1,v:payload.v,p:(posM(payload.p)||[]).map(v=>v.toFixed(2)).join(', '),when:clock(payload.t)});if(alerts.length>100)alerts.length=100}
+ else if(a.length===2&&a[1]==='stats'&&a[0].startsWith('relay'))relays[a[0]]=payload||{};
+ else if(rel==='base/stats')base=payload||{};
+ else if(a.length===3&&a[0]==='anchor'&&['info','status'].includes(a[2]))anchors[a[1]]={...(anchors[a[1]]||{}),...(payload||{}),updated:clock(payload?.t)};
+ else if(rel==='drone/ack'&&payload&&typeof payload==='object')$('mode').textContent=(payload.ok?'ACK ':'Rejected ')+payload.cmd;
+ render();
+}
+function connect(){
+ if(!window.mqtt){alert('MQTT.js did not load. Check internet access.');return}if(client)client.end(true);
+ const url=$('url').value.trim();if(!/^wss?:\/\//i.test(url)){alert('Use ws://localhost:9001 or a secure wss:// URL.');return}
+ const opts={clean:true,connectTimeout:10000,reconnectPeriod:3000,keepalive:30};if($('user').value){opts.username=$('user').value;opts.password=$('pass').value}
+ $('conn').textContent='CONNECTING';client=mqtt.connect(url,opts);
+ client.on('connect',()=>{$('dot').className='dot on';$('conn').textContent='CONNECTED';$('disconnect').disabled=false;$('send').disabled=false;client.subscribe(root()+'/#',{qos:1});started=Date.now();if(timer)clearInterval(timer);timer=setInterval(()=>{$('uptime').textContent='· '+Math.floor((Date.now()-started)/1000)+'s';render()},1000)});
+ client.on('reconnect',()=>{$('conn').textContent='RECONNECTING'});client.on('offline',()=>{$('dot').className='dot bad';$('conn').textContent='OFFLINE'});client.on('error',e=>{console.error(e);$('dot').className='dot bad';$('conn').textContent='CONNECTION ERROR'});
+ client.on('message',(topic,msg)=>{let p;try{p=JSON.parse(msg.toString())}catch{p=msg.toString()}onMessage(topic,p)});
+}
+function disconnect(){if(client){client.end(true);client=null}if(timer)clearInterval(timer);timer=null;$('dot').className='dot';$('conn').textContent='DISCONNECTED';$('disconnect').disabled=true;$('send').disabled=true}
+$('connect').onclick=connect;$('disconnect').onclick=disconnect;$('send').onclick=()=>{if(!client?.connected)return;const cmd=$('cmd').value;client.publish(root()+'/drone/cmd',JSON.stringify({cmd}),{qos:1},e=>{if(e)alert('Publish failed: '+e.message);else $('mode').textContent='SENT '+cmd})};
+$('clear').onclick=()=>$('log').innerHTML='<tr><td colspan="3">Log cleared.</td></tr>';$('root').onchange=()=>$('cmdTopic').textContent=root()+'/drone/cmd';$('sel').onchange=render;
+$('saveZones').onclick=saveZones;$('clearZones').onclick=clearZones;for(const k of zoneNames)for(const s of ['Xmin','Xmax','Ymin','Ymax','Zmin','Zmax'])$(k+s).addEventListener('input',setZoneStatus);
+loadZones();init3D();render();
+})();
+</script>
+</body></html>
